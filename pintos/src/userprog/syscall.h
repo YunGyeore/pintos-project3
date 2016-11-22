@@ -1,0 +1,10 @@
+#ifndef USERPROG_SYSCALL_H
+#define USERPROG_SYSCALL_H
+
+void syscall_init (void);
+
+////////////////////////////////////////////////////////////////// 
+void check_address(void *);
+void get_argument(void *, void **, int);
+////////////////////////////////////////////////////////////////// 
+#endif /* userprog/syscall.h */
