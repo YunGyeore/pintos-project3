@@ -1,6 +1,6 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
-#include <hash.h>
+
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
@@ -116,9 +116,6 @@ struct thread
 		// project2
 		struct child_info *Info;
 		struct file* e_file;
-
-		/* project 3 : our implementation */
-		struct hash spage_table;
 };
 
 struct donate
