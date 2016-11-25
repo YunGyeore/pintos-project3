@@ -125,9 +125,9 @@ static void
 page_fault (struct intr_frame *f) 
 {
 
-#ifdef	USERPROG
-	syscall_exit(f,-1);
-#endif
+//#ifdef	USERPROG
+//	syscall_exit(f,-1);
+//#endif
 
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
@@ -158,11 +158,13 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  if(!load_page(fault_addr)){
+	  printf ("Page fault at %p: %s error %s page in %s context.\n",
+			  fault_addr,
+			  not_present ? "not present" : "rights violation",
+			  write ? "writing" : "reading",
+			  user ? "user" : "kernel");
+	  kill (f);
+  }
 }
 
