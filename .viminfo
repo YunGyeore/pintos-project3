@@ -8,22 +8,34 @@
 # hlsearch on (H) or off (h):
 ~h
 # Last Search Pattern:
-~MSle0~/thread_start
+~MSle0~/file_read_at
 
 # Last Substitute String:
 $
 
 # Command Line History (newest to oldest):
 :wq
-:w
-:Wq
 :q
-:100
-:Q
-:39
+:w
+:install_page
 :84
-:62
+:66
+:80
+:Wq
+:77
+:89
+:50
+:28
+:Q
+:16
+:10
 :24
+:25
+:18
+:'<,'>wq
+:100
+:39
+:62
 :15
 :13
 :set nonu
@@ -46,26 +58,46 @@ $
 :552
 :541
 :130
-:89
 :120
 :132
 :137
 :212
 :211
 :98
-:register
-:sq
-::
-:if
-:a
-:32
-:474
-:64
-:198
-:271
-:71
 
 # Search String History (newest to oldest):
+?/file_read_at
+?/actu
+?/actu	
+?/read_at
+?/load_file
+?/load_foile
+?/get_ste
+?/file
+?/frame_alloc
+?/setup_stack
+?/load_se
+?/add_file
+?/load_seg
+?//
+?/page_faul
+?/fault
+?/-1
+?/install
+?/install_
+?/pg_round
+?/PAL
+?/ste
+?/spage_action
+?/action_
+?/process_exit
+?/kpage
+?/*
+?/start_process
+?/hash
+?/thread_create
+?/init_thread
+?/supp
 ?/thread_start
 ?/frame_t
 ?/frame_table
@@ -84,38 +116,6 @@ $
 ?/frame_table_init
 ?/:
 ?/init
-?/load_segment
-?/frame_add_
-?/falloc
-?/unset nu
-? set nu
-?/palloc_get
-?/palloc
-?/load
-?//
-?/close
-?/exit
-?/deny
-?/open
-?/handler
-?/syscall_ha
-?/exec
-?/get_child
-?/waited
-?/wait
-?/find_
-?/%d
-?/%x
-?/printf
-?/check_address
-?/get_address
-?/process_wait
-?/loaded
-?/exit(-1)
-?/write
-?/read
-?/find_owned_file
-?/thread %d
 
 # Expression History (newest to oldest):
 
@@ -126,13 +126,40 @@ $
 # Registers:
 "0	LINE	0
 	
-	bool
-	create (const char *file, unsigned initial_size)
+	void frame_add_to_table(void* frame)
 	{
-	        return filesys_create(file, initial_size);
+		struct frame_table_entry *fte = malloc(sizeof(struct frame_table_entry));
+		fte->frame = frame;
+		fte->tid = thread_tid();
+	
+		lock_acquire(&frame_table_lock);
+		hash_insert(&frame_table, &fte->elem);
+		lock_release(&frame_table_lock);
 	}
 	
 ""1	CHAR	0
+	static bool install_page (void *upage, void *kpage, bool writable);
+	
+	
+"2	CHAR	0
+	
+	/* supplement page table hash function declaration */
+	unsigned spage_hash_func(const struct hash_elem *e, void *aux);
+	bool spage_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+	void spage_action_func();
+	
+	
+"3	CHAR	0
+	/* get supplement page of specific virtual user address */
+	struct spage_table_entry * get_ste(void *vaddr)
+	{
+		struct thread * cur = thread_current();
+		struct spage_table_entry ste;
+		ste.upage = pg_round_down(vaddr);
+		struct hash_elem *e = hash_find(&cur->spage_table, &ste.elem);
+		return (!e)?NULL:hash_entry(e, struct spage_table_entry, elem);
+	}
+"4	CHAR	0
 	
 	void frame_add_to_table(void* frame)
 	{
@@ -146,7 +173,7 @@ $
 	}
 	
 	
-"2	CHAR	0
+"5	CHAR	0
 	
 	/* frame table hash function */
 	unsigned frame_hash_func(const struct hash_elem *e, void *aux UNUSED);
@@ -179,7 +206,7 @@ $
 	
 	/* hash action function for frame table (hash destroy) */
 	void frame_action_func(struct hash_elem *e, void *aux
-"3	CHAR	0
+"6	CHAR	0
 	
 	bool
 	create (const char *file, unsigned initial_size)
@@ -188,7 +215,7 @@ $
 	}
 	
 	
-"4	CHAR	0
+"7	CHAR	0
 	void
 	exit (int status)
 	{
@@ -210,7 +237,7 @@ $
 		thread_exit();
 		return;
 	}
-"5	CHAR	0
+"8	CHAR	0
 	////////////////////////////////////////////////////////////////////////////////
 	struct thread* get_child_thread(tid_t tid){
 	        struct thread* cur = thread_current();
@@ -228,7 +255,7 @@ $
 	}
 	///////////////////////////////////////////////////////////////////////////////
 	/
-"6	CHAR	0
+"9	CHAR	0
 	////////////////////////////////////////////////////////////////////////////////
 	struct thread* get_child_thread(tid_t tid){
 	        struct thread* cur = thread_current();
@@ -244,357 +271,125 @@ $
 	        }
 	        return NULL;
 	}
-"7	CHAR	0
-	/*process syscall*/
-	pid_t
-	exec (const char *cmd_line)
-	{
-		return process_execute(cmd_line);
-	}
-	
-	int
-	wait (pid_t pid)
-	{
-		return process_wait(pid);
-	}
-	
-	bool
-	create (const char *file, unsigned initial_size)
-	i{
-		return filesys_create(file, initial_size);
-	}
-"8	CHAR	0
-	////////////////////////////////////////////////////////////////////////////////
-	struct thread* get_child_thread(tid_t tid){
-		struct thread* cur = thread_current();
-		struct list_elem *e;
-	
-		e=list_begin(&cur->child_list);
-	
-		while(e != NULL)
-		{
-			struct thread *found_thread= list_entry(e, struct thread, child_list_elem);
-			if(found_thread->tid == tid) return found_thread;
-			e=list_next(e);
-		}
-		return NULL;
-	}
-"9	LINE	0
-		}
 "-	CHAR	0
-	r
+		
 
 # File marks:
-'0  141  19  ~/pintos/src/threads/thread.c
-'1  89  1  ~/pintos/src/threads/init.c
-'2  1  0  ~/pintos/src/threads/thread.c
-'3  84  29  ~/pintos/src/threads/init.c
-'4  595  19  ~/pintos/src/userprog/process.c
-'5  21  0  ~/pintos/src/vm/frame.c
-'6  54  12  ~/pintos/src/threads/loader.S
-'7  81  2  ~/pintos/src/threads/init.c
-'8  1  0  ~/pintos/src/vm/frame.c
-'9  108  16  ~/pintos/src/threads/thread.c
+'0  23  53  ~/pintos/src/vm/frame.c
+'1  7  25  ~/pintos/src/vm/spage.c
+'2  64  0  ~/pintos/src/vm/spage.c
+'3  66  74  ~/pintos/src/vm/spage.c
+'4  35  54  ~/pintos/src/vm/spage.c
+'5  1  0  ~/pintos/src/vm/frame.c
+'6  51  9  ~/pintos/src/vm/frame.c
+'7  60  18  ~/pintos/src/vm/spage.c
+'8  643  20  ~/pintos/src/userprog/process.c
+'9  600  0  ~/pintos/src/userprog/process.c
 
 # Jumplist (newest first):
--'  141  19  ~/pintos/src/threads/thread.c
--'  1  0  ~/pintos/src/threads/thread.c
--'  89  1  ~/pintos/src/threads/init.c
--'  1  0  ~/pintos/src/threads/init.c
--'  57  52  ~/pintos/src/threads/thread.c
--'  84  29  ~/pintos/src/threads/init.c
--'  595  19  ~/pintos/src/userprog/process.c
--'  199  57  ~/pintos/src/userprog/process.c
--'  198  58  ~/pintos/src/userprog/process.c
--'  143  25  ~/pintos/src/userprog/process.c
--'  135  14  ~/pintos/src/userprog/process.c
--'  23  13  ~/pintos/src/userprog/process.c
--'  1  0  ~/pintos/src/userprog/process.c
--'  21  0  ~/pintos/src/vm/frame.c
+-'  23  53  ~/pintos/src/vm/frame.c
 -'  1  0  ~/pintos/src/vm/frame.c
--'  54  12  ~/pintos/src/threads/loader.S
--'  15  0  ~/pintos/src/threads/loader.S
--'  1  0  ~/pintos/src/threads/loader.S
--'  81  2  ~/pintos/src/threads/init.c
--'  390  56  ~/pintos/src/threads/init.c
--'  223  2  ~/pintos/src/threads/init.c
--'  194  0  ~/pintos/src/threads/init.c
--'  64  14  ~/pintos/src/threads/init.c
--'  191  11  ~/pintos/src/threads/init.c
--'  42  23  ~/pintos/src/threads/init.c
--'  108  16  ~/pintos/src/threads/thread.c
--'  45  0  ~/pintos/src/vm/frame.c
--'  44  40  ~/pintos/src/vm/frame.c
--'  130  19  ~/pintos/src/threads/thread.c
--'  83  19  ~/pintos/src/threads/thread.c
--'  55  21  ~/pintos/src/threads/thread.c
--'  54  9  ~/pintos/src/threads/thread.c
--'  20  13  ~/pintos/src/threads/thread.c
--'  2  0  ~/pintos/src/threads/thread.c
--'  20  97  ~/pintos/src/vm/frame.c
--'  8  0  ~/pintos/src/vm/frame.h
--'  6  0  ~/pintos/src/vm/frame.h
--'  1  0  ~/pintos/src/vm/frame.h
--'  1  4  ~/pintos/src/vm/Make.vars
--'  1  0  ~/pintos/src/vm/Make.v
--'  1  0  ~/pintos/src/userprog/Makefile
--'  1  0  ~/pintos/src/vm/Makefile
--'  79  5  ~/pintos/src/Makefile.build
--'  44  0  ~/pintos/src/Makefile.build
--'  1  0  ~/pintos/src/Makefile.build
--'  15  0  ~/pintos/src/vm/frame.c
--'  67  0  ~/pintos/src/userprog/process.c
--'  11  0  ~/pintos/src/threads/thread.c
--'  8  0  ~/pintos/src/threads/thread.h
+-'  7  25  ~/pintos/src/vm/spage.c
+-'  22  0  ~/pintos/src/vm/spage.c
+-'  1  0  ~/pintos/src/vm/spage.c
+-'  64  0  ~/pintos/src/vm/spage.c
+-'  66  74  ~/pintos/src/vm/spage.c
+-'  49  10  ~/pintos/src/vm/spage.c
+-'  35  54  ~/pintos/src/vm/spage.c
+-'  51  9  ~/pintos/src/vm/frame.c
+-'  60  18  ~/pintos/src/vm/spage.c
+-'  643  20  ~/pintos/src/userprog/process.c
+-'  499  7  ~/pintos/src/userprog/process.c
+-'  398  0  ~/pintos/src/userprog/process.c
+-'  1  0  ~/pintos/src/userprog/process.c
+-'  600  0  ~/pintos/src/userprog/process.c
+-'  487  19  ~/pintos/src/userprog/process.c
+-'  388  12  ~/pintos/src/userprog/process.c
+-'  85  0  ~/pintos/src/userprog/process.c
+-'  625  0  ~/pintos/src/userprog/process.c
+-'  621  5  ~/pintos/src/userprog/process.c
+-'  622  1  ~/pintos/src/userprog/process.c
+-'  259  0  ~/pintos/src/userprog/process.c
+-'  162  0  ~/pintos/src/userprog/exception.c
+-'  78  28  ~/pintos/src/userprog/exception.c
+-'  68  48  ~/pintos/src/userprog/exception.c
+-'  61  43  ~/pintos/src/userprog/exception.c
+-'  60  5  ~/pintos/src/userprog/exception.c
+-'  59  44  ~/pintos/src/userprog/exception.c
+-'  24  8  ~/pintos/src/userprog/exception.c
+-'  13  17  ~/pintos/src/userprog/exception.c
+-'  10  22  ~/pintos/src/userprog/exception.c
+-'  9  18  ~/pintos/src/userprog/exception.c
+-'  1  0  ~/pintos/src/userprog/exception.c
+-'  129  1  ~/pintos/src/userprog/exception.c
+-'  664  0  ~/pintos/src/userprog/process.c
+-'  646  16  ~/pintos/src/userprog/process.c
+-'  612  13  ~/pintos/src/userprog/process.c
+-'  10  58  ~/pintos/src/userprog/process.h
+-'  1  0  ~/pintos/src/userprog/process.h
+-'  1  0  ~/pintos/src/userprog/process.
+-'  515  0  ~/pintos/src/userprog/process.c
+-'  5  18  ~/pintos/src/vm/spage.c
+-'  89  40  ~/pintos/src/vm/spage.c
+-'  4  26  ~/pintos/src/vm/spage.c
+-'  2  17  ~/pintos/src/vm/spage.c
+-'  15  8  ~/pintos/src/vm/frame.c
+-'  46  13  ~/pintos/src/vm/frame.c
+-'  80  1  ~/pintos/src/vm/spage.c
+-'  4  16  ~/pintos/src/vm/spage.h
+-'  1  0  ~/pintos/src/vm/spage.h
+-'  102  0  ~/pintos/src/vm/spage.c
+-'  88  13  ~/pintos/src/vm/spage.c
+-'  86  74  ~/pintos/src/vm/spage.c
+-'  1  0  ~/pintos/src/vm/spge.c
+-'  98  21  ~/pintos/src/vm/spage.c
+-'  52  0  ~/pintos/src/vm/spage.c
+-'  16  0  ~/pintos/src/vm/spage.h
+-'  26  54  ~/pintos/src/vm/spage.h
+-'  21  4  ~/pintos/src/vm/spage.c
+-'  172  20  ~/pintos/src/threads/thread.h
+-'  173  28  ~/pintos/src/threads/thread.h
+-'  121  16  ~/pintos/src/threads/thread.h
 -'  1  0  ~/pintos/src/threads/thread.h
--'  4  17  ~/pintos/src/threads/thread.h
--'  19  6  ~/pintos/src/threads/thread.c
--'  1  0  ~/pintos/src/Makefile
--'  74  0  ~/pintos/src/Makefile.build
--'  73  0  ~/pintos/src/Makefile.build
--'  72  0  ~/pintos/src/Makefile.build
--'  71  0  ~/pintos/src/Makefile.build
--'  70  0  ~/pintos/src/Makefile.build
--'  75  0  ~/pintos/src/Makefile.build
--'  64  0  ~/pintos/src/Makefile.build
--'  11  0  ~/pintos/src/Makefile.kernel
--'  1  0  ~/pintos/src/Makefile.kernel
--'  21  0  ~/pintos/src/threads/thread.c
--'  21  25  ~/pintos/src/vm/frame.h
--'  93  0  ~/pintos/src/Makefile.build
--'  13  0  ~/pintos/src/Makefile
--'  67  8  ~/pintos/src/threads/thread.c
--'  36  5  ~/pintos/src/vm/frame.c
--'  39  4  ~/pintos/src/vm/frame.c
--'  83  0  ~/pintos/src/vm/frame.c
--'  59  40  ~/pintos/src/vm/frame.c
--'  24  27  ~/pintos/src/vm/frame.c
--'  13  48  ~/pintos/src/vm/frame.c
--'  36  8  ~/pintos/src/threads/thread.c
--'  59  3  ~/pintos/src/threads/thread.c
--'  35  37  ~/pintos/src/vm/frame.c
--'  2  0  ~/pintos/src/vm/frame.c
--'  10  12  ~/pintos/src/vm/frame.h
--'  632  0  ~/pintos/src/userprog/process.c
--'  486  19  ~/pintos/src/userprog/process.c
--'  387  12  ~/pintos/src/userprog/process.c
--'  45  1  ~/pintos/src/userprog/process.c
--'  67  40  ~/pintos/src/Makefile.build
--'  140  0  ~/pintos/src/threads/thread.c
--'  23  39  ~/pintos/src/vm/frame.c
--'  13  0  ~/pintos/src/vm/frame.h
--'  56  0  ~/pintos/src/vm/frame.c
--'  53  1  ~/pintos/src/vm/frame.c
--'  80  5  ~/pintos/src/vm/frame.c
--'  52  4  ~/pintos/src/vm/frame.c
--'  37  0  ~/pintos/src/vm/frame.c
--'  16  0  ~/pintos/src/vm/frame.h
--'  20  0  ~/pintos/src/vm/frame.h
--'  10  0  ~/pintos/src/vm/frame.c
--'  49  15  ~/pintos/src/vm/frame.c
--'  4  0  ~/pintos/src/vm/frame.h
+-'  18  41  ~/pintos/src/vm/spage.h
+-'  61  18  ~/pintos/src/vm/spage.c
+-'  23  0  ~/pintos/src/vm/spage.c
+-'  33  23  ~/pintos/src/vm/spage.c
+-'  15  83  ~/pintos/src/vm/spage.c
+-'  25  80  ~/pintos/src/vm/spage.h
+-'  8  0  ~/pintos/src/vm/spage.h
+-'  21  67  ~/pintos/src/vm/spage.h
+-'  17  1  ~/pintos/src/vm/spage.h
+-'  24  20  ~/pintos/src/userprog/process.c
+-'  170  0  ~/pintos/src/userprog/exception.c
+-'  148  0  ~/pintos/src/userprog/exception.c
+-'  302  21  ~/pintos/src/userprog/process.c
+-'  601  0  ~/pintos/src/userprog/process.c
+-'  3  0  ~/pintos/src/userprog/process.c
+-'  1  0  ~/pintos/src/userprog/processc
+-'  467  18  ~/pintos/src/userprog/process.c
+-'  19  22  ~/pintos/src/vm/spage.h
+-'  48  7  ~/pintos/src/vm/spage.c
+-'  40  47  ~/pintos/src/vm/spage.c
+-'  11  0  ~/pintos/src/vm/frame.h
+-'  1  0  ~/pintos/src/vm/frame.h
+-'  22  0  ~/pintos/src/vm/spage.h
+-'  140  69  ~/pintos/src/userprog/process.c
+-'  25  19  ~/pintos/src/userprog/process.c
+-'  132  0  ~/pintos/src/userprog/process.c
+-'  121  9  ~/pintos/src/userprog/process.c
+-'  295  0  ~/pintos/src/threads/thread.c
+-'  231  10  ~/pintos/src/threads/thread.c
+-'  230  20  ~/pintos/src/threads/thread.c
+-'  140  2  ~/pintos/src/threads/thread.c
+-'  97  3  ~/pintos/src/threads/thread.c
+-'  792  27  ~/pintos/src/threads/thread.c
+-'  635  12  ~/pintos/src/threads/thread.c
 
 # History of marks within files (newest to oldest):
 
-> ~/pintos/src/threads/thread.c
-	"	141	19
-	^	141	20
-	.	141	19
-	+	495	65
-	+	492	11
-	+	490	7
-	+	492	12
-	+	98	0
-	+	97	0
-	+	494	62
-	+	494	27
-	+	495	0
-	+	495	0
-	+	224	1
-	+	222	71
-	+	218	27
-	+	219	18
-	+	213	43
-	+	218	23
-	+	223	0
-	+	219	45
-	+	213	15
-	+	219	65
-	+	213	51
-	+	214	30
-	+	215	3
-	+	218	3
-	+	220	21
-	+	221	30
-	+	490	7
-	+	1	0
-	+	490	7
-	+	1	0
-	+	219	0
-	+	491	9
-	+	490	1
-	+	491	0
-	+	491	9
-	+	492	26
-	+	493	29
-	+	216	18
-	+	493	1
-	+	490	14
-	+	217	18
-	+	628	79
-	+	20	20
-	+	104	1
-	+	108	18
-	+	108	16
-	+	108	37
-	+	1	0
-	+	108	17
-	+	108	31
-	+	108	18
-	+	129	6
-	+	130	19
-	+	109	0
-	+	129	2
-	+	139	0
-	+	141	19
-	n	189	1
-
-> ~/pintos/src/threads/init.c
-	"	89	1
-	^	89	2
-	.	89	1
-	+	81	34
-	+	83	0
-	+	80	14
-	+	81	0
-	+	81	22
-	+	81	20
-	+	82	0
-	+	90	17
-	+	91	0
-	+	88	49
-	+	88	37
-	+	88	36
-	+	88	36
-	+	90	0
-	+	82	0
-	+	85	0
-	+	88	36
-	+	90	0
-	+	84	30
-	+	85	0
-	+	11	20
-	+	89	1
-	a	89	18
-
-> ~/pintos/src/userprog/process.c
-	"	595	19
-	^	595	20
-	.	596	0
-	+	143	0
-	+	144	38
-	+	150	1
-	+	58	13
-	+	150	0
-	+	58	1
-	+	56	13
-	+	144	1
-	+	55	0
-	+	256	0
-	+	182	48
-	+	184	32
-	+	187	58
-	+	192	0
-	+	183	28
-	+	192	0
-	+	190	55
-	+	194	46
-	+	187	24
-	+	182	44
-	+	229	24
-	+	192	59
-	+	230	0
-	+	212	0
-	+	205	0
-	+	193	0
-	+	182	1
-	+	187	1
-	+	190	1
-	+	195	0
-	+	194	1
-	+	209	1
-	+	211	1
-	+	184	1
-	+	73	43
-	+	102	0
-	+	106	17
-	+	139	0
-	+	141	16
-	+	124	65
-	+	141	26
-	+	141	26
-	+	141	26
-	+	141	11
-	+	64	0
-	+	91	1
-	+	579	41
-	+	587	0
-	+	585	0
-	+	583	21
-	+	583	19
-	+	583	19
-	+	582	22
-	+	584	12
-	+	586	0
-	+	579	32
-	+	581	26
-	+	582	13
-	+	583	11
-	+	586	22
-	+	91	28
-	+	105	29
-	+	581	9
-	+	188	37
-	+	141	56
-	+	142	37
-	+	208	17
-	+	209	0
-	+	211	0
-	+	213	23
-	+	214	0
-	+	206	22
-	+	207	16
-	+	179	53
-	+	181	28
-	+	179	29
-	+	180	35
-	+	560	0
-	+	561	0
-	+	560	0
-	+	20	14
-	+	22	0
-	+	23	20
-	+	598	0
-	+	599	0
-	+	594	0
-	+	592	33
-	+	594	75
-	+	597	1
-	+	595	59
-	+	606	60
-	+	607	20
-	+	614	9
-	+	615	60
-	+	617	0
-	+	607	47
-	+	595	20
-	+	596	0
-	+	595	20
-	+	596	0
-	a	101	36
-
 > ~/pintos/src/vm/frame.c
-	"	21	0
+	"	23	53
 	^	45	1
 	.	46	0
 	+	50	70
@@ -698,11 +493,322 @@ $
 	+	45	1
 	+	46	0
 
-> ~/pintos/src/threads/loader.S
-	"	54	12
+> ~/pintos/src/vm/spage.c
+	"	7	25
+	^	64	0
+	.	66	1
+	+	42	20
+	+	52	0
+	+	42	19
+	+	43	2
+	+	44	12
+	+	48	5
+	+	45	10
+	+	47	8
+	+	49	8
+	+	45	1
+	+	45	24
+	+	47	24
+	+	49	25
+	+	51	8
+	+	49	18
+	+	47	15
+	+	55	0
+	+	55	0
+	+	54	0
+	+	44	7
+	+	46	7
+	+	48	7
+	+	80	0
+	+	56	44
+	+	78	0
+	+	106	0
+	+	84	0
+	+	92	16
+	+	96	32
+	+	96	2
+	+	97	15
+	+	98	22
+	+	87	39
+	+	98	47
+	+	100	14
+	+	104	14
+	+	60	39
+	+	62	0
+	+	79	12
+	+	8	0
+	+	15	84
+	+	21	53
+	+	33	50
+	+	98	17
+	+	84	74
+	+	88	37
+	+	64	20
+	+	63	22
+	+	63	22
+	+	64	0
+	+	59	69
+	+	64	77
+	+	71	41
+	+	73	43
+	+	1	19
+	+	2	18
+	+	1	18
+	+	2	9
+	+	1	26
+	+	2	17
+	+	4	26
+	+	88	40
+	+	6	21
+	+	7	25
+	+	59	1
+	+	98	51
+	+	45	0
+	+	46	0
+	+	78	2
+	+	79	0
+	+	71	54
+	+	72	0
+	+	62	15
+	+	63	0
+	+	70	2
+	+	70	2
+	+	71	0
+	+	86	1
+	+	89	35
+	+	89	23
+	+	91	0
+	+	90	1
+	+	100	0
+	+	99	16
+	+	98	53
+	+	101	0
+	+	103	16
+	+	99	17
+	+	103	19
+	+	105	0
+	+	101	0
+	+	102	0
+	+	103	1
+	+	99	1
+	+	59	0
+	+	35	54
+	+	66	9
+	+	58	7
+	+	64	68
+	+	66	1
+	a	88	7
+
+> ~/pintos/src/userprog/process.c
+	"	643	20
+	^	643	21
+	.	643	20
+	+	124	65
+	+	141	26
+	+	141	26
+	+	141	26
+	+	141	11
+	+	64	0
+	+	91	1
+	+	578	41
+	+	586	0
+	+	584	0
+	+	582	21
+	+	582	19
+	+	582	19
+	+	581	22
+	+	583	12
+	+	585	0
+	+	578	32
+	+	580	26
+	+	581	13
+	+	582	11
+	+	585	22
+	+	91	28
+	+	105	29
+	+	580	9
+	+	188	37
+	+	141	56
+	+	142	37
+	+	208	17
+	+	209	0
+	+	211	0
+	+	213	23
+	+	214	0
+	+	206	22
+	+	207	16
+	+	179	53
+	+	181	28
+	+	179	29
+	+	180	35
+	+	559	0
+	+	560	0
+	+	559	0
+	+	20	14
+	+	22	0
+	+	23	20
+	+	597	0
+	+	598	0
+	+	593	0
+	+	591	33
+	+	593	75
+	+	596	1
+	+	594	59
+	+	605	60
+	+	606	20
+	+	613	9
+	+	614	60
+	+	616	0
+	+	606	47
+	+	594	20
+	+	595	0
+	+	594	20
+	+	595	0
+	+	22	16
+	+	140	69
+	+	597	0
+	+	617	1
+	+	616	1
+	+	615	1
+	+	613	1
+	+	612	1
+	+	609	1
+	+	608	1
+	+	607	0
+	+	606	1
+	+	604	1
+	+	603	1
+	+	600	1
+	+	599	1
+	+	625	0
+	+	618	0
+	+	619	0
+	+	621	1
+	+	627	0
+	+	628	0
+	+	627	23
+	+	621	17
+	+	624	0
+	+	621	16
+	+	622	2
+	+	623	14
+	+	621	72
+	+	3	0
+	+	595	1
+	+	303	0
+	+	303	0
+	+	301	0
+	+	298	51
+	+	24	20
+	+	516	0
+	+	664	0
+	+	643	20
+	a	101	36
+
+> ~/pintos/src/userprog/exception.c
+	"	170	0
+	^	130	2
+	.	130	1
+	+	161	27
+	+	162	0
+	+	163	7
+	+	164	7
+	+	168	0
+	+	161	0
+	+	129	1
+	+	128	1
+	+	130	1
+
+> ~/pintos/src/userprog/process.h
+	"	10	58
+	^	10	59
+	.	10	0
+	+	10	0
+	+	10	65
+	+	10	65
+	+	10	25
+	+	11	0
+	+	10	0
+	+	11	0
+	+	10	0
+
+> ~/pintos/src/userprog/process.
+	"	1	0
+
+> ~/pintos/src/vm/spage.h
+	"	4	16
+	^	26	55
+	.	26	54
+	+	1	17
+	+	15	22
+	+	5	24
+	+	1	18
+	+	2	18
+	+	22	5
+	+	7	42
+	+	20	0
+	+	19	30
+	+	20	0
+	+	18	47
+	+	16	9
+	+	20	22
+	+	19	22
+	+	21	120
+	+	21	119
+	+	22	0
+	+	23	53
+	+	26	0
+	+	18	0
+	+	17	1
+	+	24	58
+	+	25	81
+	+	20	41
+	+	26	54
+
+> ~/pintos/src/vm/spge.c
+	"	1	0
+
+> ~/pintos/src/threads/thread.h
+	"	172	20
+	^	121	26
+	.	121	25
+	+	107	63
+	+	94	61
+	+	96	23
+	+	99	39
+	+	110	59
+	+	107	0
+	+	110	151
+	+	99	15
+	+	110	59
+	+	100	6
+	+	110	123
+	+	110	123
+	+	100	28
+	+	101	12
+	+	107	12
+	+	107	0
+	+	7	24
+	+	104	17
+	+	105	29
+	+	102	12
+	+	97	18
+	+	9	27
+	+	105	0
+	+	103	12
+	+	159	39
+	+	106	33
+	+	110	59
+	+	110	59
+	+	3	16
+	+	120	38
+	+	121	25
+
+> ~/pintos/src/userprog/processc
+	"	1	0
 
 > ~/pintos/src/vm/frame.h
-	"	8	0
+	"	11	0
 	.	8	0
 	+	1	11
 	+	2	17
@@ -770,6 +876,111 @@ $
 	+	8	0
 	+	8	0
 
+> ~/pintos/src/threads/thread.c
+	"	295	0
+	^	736	27
+	.	744	0
+	+	495	65
+	+	492	11
+	+	490	7
+	+	492	12
+	+	98	0
+	+	97	0
+	+	494	62
+	+	494	27
+	+	495	0
+	+	495	0
+	+	224	1
+	+	222	71
+	+	218	27
+	+	219	18
+	+	213	43
+	+	218	23
+	+	223	0
+	+	219	45
+	+	213	15
+	+	219	65
+	+	213	51
+	+	214	30
+	+	215	3
+	+	218	3
+	+	220	21
+	+	221	30
+	+	490	7
+	+	1	0
+	+	490	7
+	+	1	0
+	+	219	0
+	+	491	9
+	+	490	1
+	+	491	0
+	+	491	9
+	+	492	26
+	+	493	29
+	+	216	18
+	+	493	1
+	+	490	14
+	+	217	18
+	+	628	79
+	+	20	20
+	+	104	1
+	+	108	18
+	+	108	16
+	+	108	37
+	+	1	0
+	+	108	17
+	+	108	31
+	+	108	18
+	+	129	6
+	+	130	19
+	+	109	0
+	+	129	2
+	+	139	0
+	+	141	19
+	+	743	72
+	+	744	0
+	n	189	1
+
+> ~/pintos/src/Makefile.build
+	"	68	46
+	^	68	47
+	.	68	46
+	+	67	40
+	+	66	20
+	+	26	0
+	+	68	46
+
+> ~/pintos/src/threads/init.c
+	"	89	1
+	^	89	2
+	.	89	1
+	+	81	34
+	+	83	0
+	+	80	14
+	+	81	0
+	+	81	22
+	+	81	20
+	+	82	0
+	+	90	17
+	+	91	0
+	+	88	49
+	+	88	37
+	+	88	36
+	+	88	36
+	+	90	0
+	+	82	0
+	+	85	0
+	+	88	36
+	+	90	0
+	+	84	30
+	+	85	0
+	+	11	20
+	+	89	1
+	a	89	18
+
+> ~/pintos/src/threads/loader.S
+	"	54	12
+
 > ~/pintos/src/vm/Make.vars
 	"	1	4
 	a	1	0
@@ -794,47 +1005,6 @@ $
 
 > ~/pintos/src/vm/Makefile
 	"	1	0
-
-> ~/pintos/src/Makefile.build
-	"	79	5
-	^	44	1
-	.	26	0
-	+	67	40
-	+	66	20
-	+	26	0
-
-> ~/pintos/src/threads/thread.h
-	"	8	0
-	^	111	0
-	.	110	59
-	+	107	63
-	+	94	61
-	+	96	23
-	+	99	39
-	+	110	59
-	+	107	0
-	+	110	151
-	+	99	15
-	+	110	59
-	+	100	6
-	+	110	123
-	+	110	123
-	+	100	28
-	+	101	12
-	+	107	12
-	+	107	0
-	+	7	24
-	+	104	17
-	+	105	29
-	+	102	12
-	+	97	18
-	+	9	27
-	+	105	0
-	+	103	12
-	+	156	39
-	+	106	33
-	+	110	59
-	+	110	59
 
 > ~/pintos/src/Makefile
 	"	1	0
@@ -866,9 +1036,6 @@ $
 
 > ~/pintos/src/userprog/pagedir.c
 	"	17	0
-
-> ~/pintos/src/userprog/exception.c
-	"	153	11
 
 > ~/pintos/src/userprog/syscall.c
 	"	169	24
@@ -975,21 +1142,6 @@ $
 	+	192	1
 	+	1	0
 	a	257	105
-
-> ~/pintos/src/userprog/process.h
-	"	1	0
-	^	10	0
-	.	11	0
-	+	10	0
-	+	10	65
-	+	10	65
-	+	10	25
-	+	11	0
-	+	10	0
-	+	11	0
-
-> ~/pintos/src/userprog/process.
-	"	1	0
 
 > ~/pintos/src/tests/userprog/syscall.c
 	"	1	0

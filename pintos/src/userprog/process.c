@@ -19,9 +19,9 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
-
+#include <hash.h>
 #include "vm/frame.h"
-
+#include "vm/spage.h"
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -137,7 +137,7 @@ start_process (void *file_name_)
 	bool success;
 
 	char* ptrptr;
-
+	hash_init(&cur->spage_table, spage_hash_func, spage_less_func, NULL);
 	file_name = strtok_r(file_name," ",&ptrptr);						// recheck
 
 	/* Initialize interrupt frame and load executable. */
@@ -295,11 +295,12 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+	hash_destroy(&cur->spage_table, spage_action_func);
     }
-	
+
 	struct child_info *ci = getCIFromTid(cur->tid);
 	sema_up(&ci->w_sema);
-
+	
 	remove_ci(cur);
 }
 
@@ -511,8 +512,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
-
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
 static bool
@@ -593,32 +592,40 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
  //     uint8_t *kpage = palloc_get_page (PAL_USER);	/* original version */
 	/* our_implement */
-	uint8_t *kpage = frame_alloc(PAL_USER);
+//	uint8_t *kpage = frame_alloc(PAL_USER);
 	
 
 
-      if (kpage == NULL)
-        return false;
+//      if (kpage == NULL)
+//        return false;
 
       /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
+//      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+//        {
 //          palloc_free_page (kpage);			/*original version*/
-		frame_free (kpage);			/* our implementation */
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+//		frame_free (kpage);			/* our implementation */
+//          return false; 
+//        }
+//      memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
       /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
+//      if (!install_page (upage, kpage, writable)) 
+//        {
 //          palloc_free_page (kpage);			/*original version*/
-		frame_free (kpage);			/*our implementation */
-          return false; 
-        }
+//		frame_free (kpage);			/*our implementation */
+//          return false; 
+//        }
+
+
+	/*our implement*/
+	if(!add_file(file, ofs, upage, page_read_bytes, page_zero_bytes, writable))
+	{
+		return false;
+	}
 
       /* Advance. */
-      read_bytes -= page_read_bytes;
+	ofs += page_read_bytes;      
+	read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
@@ -633,7 +640,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = frame_alloc (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -654,7 +661,7 @@ setup_stack (void **esp)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();

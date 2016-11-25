@@ -1,6 +1,7 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =4
+let g:netrw_dirhist_cnt =5
 let g:netrw_dirhist_1='/home/os17/pintos/src/threads'
 let g:netrw_dirhist_2='/home/os17/pintos/src/userprog'
 let g:netrw_dirhist_3='/home/os17/pintos'
 let g:netrw_dirhist_4='/home/os17/pintos/src/vm/build'
+let g:netrw_dirhist_5='/home/os17/pintos/src/vm'
