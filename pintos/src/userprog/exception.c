@@ -1,11 +1,11 @@
-#include "userprog/syscall.h"
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "threads/vaddr.h"
+#include "userprog/syscall.h"
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -72,7 +72,8 @@ exception_print_stats (void)
 static void
 kill (struct intr_frame *f) 
 {
-  /* This interrupt is one (probably) caused by a user process.
+
+	/* This interrupt is one (probably) caused by a user process.
      For example, the process might have tried to access unmapped
      virtual memory (a page fault).  For now, we simply kill the
      user process.  Later, we'll want to handle page faults in
@@ -82,7 +83,7 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
-  switch (f->cs)
+	switch (f->cs)
     {
     case SEL_UCSEG:
       /* User's code segment, so it's a user exception, as we
@@ -90,7 +91,7 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-      thread_exit (); 
+			thread_exit (); 
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -105,7 +106,7 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-      thread_exit ();
+   		thread_exit ();
     }
 }
 
@@ -123,6 +124,11 @@ kill (struct intr_frame *f)
 static void
 page_fault (struct intr_frame *f) 
 {
+
+#ifdef	USERPROG
+	syscall_exit(f,-1);
+#endif
+
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
@@ -149,9 +155,6 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-	if(not_present) exit(-1);
-	if(!user && !is_user_vaddr(fault_addr)) exit(-1);
-	if(user && is_kernel_vaddr(fault_addr)) exit(-1);
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

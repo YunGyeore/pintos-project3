@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "vm/frame.h"
 #include "devices/kbd.h"
 #include "devices/input.h"
 #include "devices/serial.h"
@@ -77,16 +78,15 @@ int
 main (void)
 {
   char **argv;
-
-  /* Clear BSS. */  
-  bss_init ();
-
+  /* Clear BSS. */   
+	bss_init ();
   /* Break command line into arguments and parse options. */
   argv = read_command_line ();
   argv = parse_options (argv);
 
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
+//frame_table_init();
   thread_init ();
   console_init ();  
 
