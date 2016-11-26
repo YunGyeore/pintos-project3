@@ -55,13 +55,14 @@ bool load_page (void *vaddr)
 bool load_file (struct spage_table_entry *ste)
 {
 //	void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
-	uint8_t *kpage = frame_alloc(PAL_USER);
+	void *kpage = frame_alloc(PAL_USER);
 	if (kpage == NULL)
 		return false;
-
+	
 	/* Load this page. */
 	if (file_read_at (ste->file, kpage, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
 	{
+		printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
 		//          palloc_free_page (kpage);                   /*original version*/
 		frame_free (kpage);                     /* our implementation */
 		return false;

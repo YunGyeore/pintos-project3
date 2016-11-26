@@ -505,7 +505,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	
  done:
   /* We arrive here whether the load is successful or not. */
-	file_close (file);
+//	file_close (file);
 	lock_release(&FILELOCK);
   return success;
 }
@@ -579,7 +579,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
+//	printf("original file : %x\n", file);
   file_seek (file, ofs);
+//	printf("after seek, location : %d\n\n", ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.

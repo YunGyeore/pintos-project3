@@ -159,6 +159,7 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   if(!load_page(fault_addr)){
+		syscall_exit(f, -1);
 	  printf ("Page fault at %p: %s error %s page in %s context.\n",
 			  fault_addr,
 			  not_present ? "not present" : "rights violation",
