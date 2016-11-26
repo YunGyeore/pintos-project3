@@ -33,6 +33,10 @@ void syscall_tell(struct intr_frame *f,int argsNum);
 
 void syscall_close(struct intr_frame *f,int argsNum);
 
+void syscall_mmap(struct intr_frame *f, int argsNum);
+
+void syscall_munmap(struct intr_frame *f, int argsNum);
+
 int currentFd(struct thread *cur);
 
 struct file* getFile(int fd,struct thread *cur);

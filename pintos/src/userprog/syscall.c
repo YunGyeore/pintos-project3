@@ -6,10 +6,11 @@
 #include "threads/init.h"
 #include <string.h>
 #include "threads/malloc.h"
-
+#include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "devices/input.h"
-
+#include "vm/frame.h"
+#include "vm/spage.h"
 #define checkARG 	if((uint32_t)esp > 0xc0000000-(argsNum+1)*4) \
 										syscall_exit(f,argsNum);
 
@@ -89,9 +90,82 @@ syscall_handler (struct intr_frame *f)
 									 break;
 		case SYS_CLOSE: syscall_close(f,1);                  /* Close a file. */
 										break;
-	}	
+		case SYS_MMAP: syscall_mmap(f, 2);
+									 break;
+		case SYS_MUNMAP: syscall_munmap(f, 1);
+									break;
+	}
 }
+void syscall_mmap(struct intr_frame *f, int argsNum)
+{
+	struct thread * cur = thread_current();
+	void * esp = f->esp;
+        checkARG
+	
+        int fd = *(int *)(esp+4);
+        void* addr = *(void **)(esp+8);
+	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){
+		f->eax = -1;
+		return;
+	}
+	struct file *file = getFile(fd, cur);
+	if(!file || !addr)
+	{
+		f->eax = -1;
+		return;
+	}
+	if((int)addr % (int)PGSIZE != 0){
+		f->eax = -1;
+		return;
+	}
+	off_t ofs;
+	off_t read_bytes = file_length(file);
+	if(read_bytes <= 0){
+		f->eax = -1;
+		return;
+	}
+	while(read_bytes<=0){
+		off_t read_page_bytes = (read_bytes > PGSIZE) ? PGSIZE : read_bytes;
+		off_t zero_page_bytes = PGSIZE-read_page_bytes;
+		struct spage_table_entry * ste = (struct spage_table_entry *)malloc(sizeof(struct spage_table_entry));
+		if(!ste) {
+			f->eax = -1; return;
+		}
+		struct mmap_page * mp = (struct mmap_page *)malloc(sizeof(struct mmap_page));
+		if(!mp){
+			free(ste);
+			f->eax = -1; return;
+		}//error 
+		ste->file = file;
+		ste->ofs = ofs;
+		ste->upage = addr;
+		ste->read_bytes = read_page_bytes;
+		ste->zero_bytes = zero_page_bytes;
+		ste->type = 2;	 //mmap	
+		if(hash_insert(&cur->spage_table, &ste->elem) != NULL){
+			free(ste); free(mp);
+			f->eax = -1; return;
+		}
+		mp->id = cur->nextMapId;
+		mp->ste = ste;
+	
+		list_push_back(&cur->mmap_file, &mp->elem);
+		
+		read_bytes -= read_page_bytes;
+		ofs += read_page_bytes;
+		addr += read_page_bytes;
+	}
+	f->eax = cur->nextMapId++;
+	
+}
+void syscall_munmap(struct intr_frame *f, int argsNum)
+{
+	void*esp = f->esp;
+        checkARG
 
+        int fd = *(int *)(esp+4);
+        void* addr = *(void **)(esp+8);
+}
 
 void syscall_halt(struct intr_frame *f UNUSED)
 {

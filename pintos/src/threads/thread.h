@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -119,7 +120,15 @@ struct thread
 
 		/* project 3 : our implementation */
 		struct hash spage_table;
+		struct list mmap_file;
+		int nextMapId;
 };
+struct mmap_page {
+	int id;
+	struct spage_table_entry *ste;
+	struct list_elem elem;
+};
+
 
 struct donate
 {
