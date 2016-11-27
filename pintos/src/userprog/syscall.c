@@ -13,7 +13,8 @@
 #include "vm/spage.h"
 #define checkARG 	if((uint32_t)esp > 0xc0000000-(argsNum+1)*4) \
 										syscall_exit(f,argsNum);
-
+void delete_mmap_page(struct mmap_page *);
+void allMunmap();
 static void syscall_handler (struct intr_frame *);
 static struct list fd_list;
 
@@ -149,8 +150,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		mp->id = cur->nextMapId;
 		mp->ste = ste;
 	
-		list_push_back(&cur->mmap_file, &mp->elem);
-		
+		list_push_back(&cur->mmap_file, &mp->elem);;
 		read_bytes -= read_page_bytes;
 		ofs += read_page_bytes;
 		addr += read_page_bytes;
@@ -160,13 +160,48 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 }
 void syscall_munmap(struct intr_frame *f, int argsNum)
 {
+	struct thread * cur = thread_current();
 	void*esp = f->esp;
         checkARG
 
-        int fd = *(int *)(esp+4);
-        void* addr = *(void **)(esp+8);
+        int mapping = *(int *)(esp+4);
+	struct list_elem *e = list_begin(&cur->mmap_file);
+        for(;e!=list_end(&fd_list);e=list_next(e))
+        {
+                struct mmap_page *mp = list_entry(e,struct mmap_page, elem);
+                if(mp->id == mapping)
+                {
+			delete_mmap_page(mp);	
+                }
+        }
 }
-
+void allMunmap()
+{
+	struct thread * cur = thread_current();	
+	struct list_elem *e = list_begin(&cur->mmap_file);
+	for(;e!=list_end(&cur->mmap_file);e=list_next(e))
+	{
+		struct mmap_page *mp = list_entry(e,struct mmap_page, elem);
+		e=list_prev(e);
+		delete_mmap_page(mp);
+	}
+}
+void delete_mmap_page(struct mmap_page *mp)
+{
+	struct thread * cur = thread_current();
+	struct spage_table_entry * ste = mp->ste;
+	if(ste->loaded){
+		if(pagedir_is_dirty())
+			file_write_at(ste->file, ste->upage, ste->read_bytes, ste->ofs);
+		void * frame;
+		frame = pagedir_get_page(cur->pagedir, ste->upage);
+		frame_free(frame);
+		pagedir_clear_page(cur->pagedir, ste->upage);
+	}
+	list_remove(&mp->elem);
+	hash_delete(&cur->spage_table, &ste->elem);
+	free(ste); free(mp);
+}
 void syscall_halt(struct intr_frame *f UNUSED)
 {
 	shutdown_power_off();

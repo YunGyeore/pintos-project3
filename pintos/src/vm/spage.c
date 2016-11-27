@@ -76,6 +76,7 @@ bool load_file (struct spage_table_entry *ste)
 		frame_free (kpage);                     /*our implementation */
 		return false;
 	}
+	ste->loaded = true;
 	return true;
 }
 
@@ -93,6 +94,7 @@ bool add_file (struct file *file, int32_t ofs, uint8_t *upage, uint32_t read_byt
 	ste->zero_bytes = zero_bytes;
 	ste->writable = writable;
 	ste->type = 0;
+	ste->loaded = false;
 	if(hash_insert(&cur->spage_table, &ste->elem)==NULL)
 		return true;
 	else

@@ -14,6 +14,7 @@ struct spage_table_entry {
 	bool writable;
 	struct hash_elem elem;
 	int type;
+	bool loaded;
 };
 struct spage_table_entry * get_ste(void *vaddr);
 bool load_page (void *vaddr);
