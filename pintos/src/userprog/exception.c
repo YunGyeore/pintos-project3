@@ -168,7 +168,7 @@ if(not_present  && fault_addr > 0x08048000 && is_user_vaddr(fault_addr))
         struct spage_table_entry * spte = get_ste(fault_addr);
         if(spte)
         {
-        load = load_page(fault_addr);
+	        load = load_page(fault_addr);
         }
 
         else if(fault_addr >= f->esp - 32) //32 => stack_heuristic

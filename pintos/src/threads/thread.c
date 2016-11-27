@@ -741,7 +741,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 	list_init(&t->donate_list);
 	list_init(&t->mmap_file);
-	t->nextMapId=0;
+	t->nextMapId=2;
   list_insert_ordered (&all_list, &t->allelem,compare_pri,(void *)NULL);
 }
 

@@ -89,7 +89,7 @@ syscall_handler (struct intr_frame *f)
 									 break;
 		case SYS_TELL: syscall_tell(f,1);                  /* Report current position in a file. */
 									 break;
-		case SYS_CLOSE: syscall_close(f,1);                  /* Close a file. */
+		case SYS_CLOSE: syscall_close(f,1);                 /* Close a file. */
 										break;
 		case SYS_MMAP: syscall_mmap(f, 2);
 									 break;
@@ -105,11 +105,13 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 	
         int fd = *(int *)(esp+4);
         void* addr = *(void **)(esp+8);
+
 	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){
 		f->eax = -1;
 		return;
 	}
 	struct file *file = getFile(fd, cur);
+	
 	if(!file || !addr)
 	{
 		f->eax = -1;
@@ -119,16 +121,19 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		f->eax = -1;
 		return;
 	}
-	off_t ofs;
+	off_t ofs=0;
 	off_t read_bytes = file_length(file);
+
 	if(read_bytes <= 0){
 		f->eax = -1;
 		return;
 	}
-	while(read_bytes<=0){
+	while(read_bytes>0){
+		
 		off_t read_page_bytes = (read_bytes > PGSIZE) ? PGSIZE : read_bytes;
 		off_t zero_page_bytes = PGSIZE-read_page_bytes;
 		struct spage_table_entry * ste = (struct spage_table_entry *)malloc(sizeof(struct spage_table_entry));
+	//	printf("file : %x, offset : %d, upage : %x, read_bytes : %d\n", file, ofs, addr, read_page_bytes);
 		if(!ste) {
 			f->eax = -1; return;
 		}
@@ -143,6 +148,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		ste->read_bytes = read_page_bytes;
 		ste->zero_bytes = zero_page_bytes;
 		ste->type = 2;	 //mmap	
+		ste->loaded = false;
 		if(hash_insert(&cur->spage_table, &ste->elem) != NULL){
 			free(ste); free(mp);
 			f->eax = -1; return;
@@ -156,7 +162,6 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		addr += read_page_bytes;
 	}
 	f->eax = cur->nextMapId++;
-	
 }
 void syscall_munmap(struct intr_frame *f, int argsNum)
 {
@@ -171,7 +176,8 @@ void syscall_munmap(struct intr_frame *f, int argsNum)
                 struct mmap_page *mp = list_entry(e,struct mmap_page, elem);
                 if(mp->id == mapping)
                 {
-			delete_mmap_page(mp);	
+			delete_mmap_page(mp);
+			break;
                 }
         }
 }
@@ -191,8 +197,9 @@ void delete_mmap_page(struct mmap_page *mp)
 	struct thread * cur = thread_current();
 	struct spage_table_entry * ste = mp->ste;
 	if(ste->loaded){
-		if(pagedir_is_dirty())
+		if(pagedir_is_dirty(cur->pagedir, ste->upage)){
 			file_write_at(ste->file, ste->upage, ste->read_bytes, ste->ofs);
+		}
 		void * frame;
 		frame = pagedir_get_page(cur->pagedir, ste->upage);
 		frame_free(frame);
@@ -281,6 +288,7 @@ void syscall_exec(struct intr_frame *f,int argsNum)
 		f->eax = -1;
 		return;
 	}
+
 
 	struct child_info * ci = getCIFromTid(tid);
 
@@ -518,4 +526,3 @@ void syscall_close(struct intr_frame *f,int argsNum){
 	}
 	lock_release(&FILELOCK);
 }
-
