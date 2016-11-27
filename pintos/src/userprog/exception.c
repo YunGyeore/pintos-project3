@@ -6,6 +6,8 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 
+#include "threads/vaddr.h"
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -158,7 +160,28 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  if(!load_page(fault_addr)){
+////////////////////////////////////////////////////
+bool load= false;
+
+if(not_present  && fault_addr > 0x08048000 && is_user_vaddr(fault_addr))
+{
+        struct spage_table_entry * spte = get_ste(fault_addr);
+        if(spte)
+        {
+        load = load_page(fault_addr);
+        }
+
+        else if(fault_addr >= f->esp - 32) //32 => stack_heuristic
+        //else if(fault_addr <= f->esp)
+        {
+        //      printf("\nin grow_stack_scope\n");
+        load = grow_stack(fault_addr);
+        }
+}
+/////////////////////////////////////////////////////////
+
+
+  if(!load){
 		syscall_exit(f, -1);
 	  printf ("Page fault at %p: %s error %s page in %s context.\n",
 			  fault_addr,

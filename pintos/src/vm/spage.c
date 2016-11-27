@@ -100,3 +100,37 @@ bool add_file (struct file *file, int32_t ofs, uint8_t *upage, uint32_t read_byt
 	else
 		return false;
 }
+
+
+bool grow_stack(void *vaddr)
+{
+
+
+if((PHYS_BASE - pg_round_down(vaddr)) >MAX_STACK_SIZE)
+        {
+                return false;
+        }
+//spte->is_loaded =true;
+struct spage_table_entry *spte = malloc(sizeof(struct spage_table_entry));
+        if(!spte) return false;
+spte->upage = pg_round_down(vaddr);
+spte->type = 1; //SWAP == 1 ??
+
+uint8_t *frame = frame_alloc(PAL_USER);
+if(!frame)
+{
+        free(spte);
+        return false;
+}
+
+if(!install_page(spte->upage, frame, true)){
+        free(spte);
+        frame_free(frame);
+        return false;
+}
+
+        struct thread* cur = thread_current();
+        return (hash_insert(&cur->spage_table, &spte->elem) == NULL);
+}
+
+

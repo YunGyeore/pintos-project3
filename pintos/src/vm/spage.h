@@ -4,6 +4,7 @@
 #include <hash.h>
 #include "filesys/file.h"
 
+#define MAX_STACK_SIZE (1<<18)
 /* supplement page table entry structure */
 struct spage_table_entry {
 	struct file *file;
