@@ -159,29 +159,28 @@ page_fault (struct intr_frame *f)
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-////////////////////////////////////////////////////
-bool load= false;
 
-if(not_present  && fault_addr > 0x08048000 && is_user_vaddr(fault_addr))
+     which fault_addr refers. */
+
+bool check= false;
+
+if(not_present && fault_addr < PHYS_BASE && fault_addr > 0x08048000)
 {
         struct spage_table_entry * spte = get_ste(fault_addr);
-        if(spte)
+        int prev_upper_page_boundary = (((int)f->esp)/PGSIZE)*PGSIZE;
+        int prev_lower_page_boundary = (((int)f->esp)/PGSIZE)*PGSIZE-PGSIZE;
+        if(spte != NULL)
         {
-	        load = load_page(fault_addr);
+        check = load_page(fault_addr);
         }
-
-        else if(fault_addr >= f->esp - 32) //32 => stack_heuristic
-        //else if(fault_addr <= f->esp)
+        
+        
+        else if(fault_addr >= prev_lower_page_boundary && fault_addr < prev_upper_page_boundary)
         {
-        //      printf("\nin grow_stack_scope\n");
-        load = grow_stack(fault_addr);
+        check = grow_stack(fault_addr);
         }
 }
-/////////////////////////////////////////////////////////
-
-
-  if(!load){
+  if(!check){
 		syscall_exit(f, -1);
 	  printf ("Page fault at %p: %s error %s page in %s context.\n",
 			  fault_addr,

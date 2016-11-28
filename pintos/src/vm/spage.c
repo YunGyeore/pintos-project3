@@ -135,33 +135,36 @@ bool add_file (struct file *file, int32_t ofs, uint8_t *upage, uint32_t read_byt
 
 bool grow_stack(void *vaddr)
 {
+void *paged_vaddr = pg_round_down(vaddr);
+if((PHYS_BASE - paged_vaddr) >MAX_STACK)  return false;
 
+struct spage_table_entry *spt_entry = malloc(sizeof(struct spage_table_entry));
+if(!spt_entry) return false;
 
-	if((PHYS_BASE - pg_round_down(vaddr)) >MAX_STACK_SIZE)
-	{
-		return false;
-	}
-	//spte->is_loaded =true;
-	struct spage_table_entry *spte = malloc(sizeof(struct spage_table_entry));
-	if(!spte) return false;
-	spte->upage = pg_round_down(vaddr);
-	spte->type = 1; //SWAP == 1 ??
+else
+{
+spt_entry->upage = paged_vaddr;
+spt_entry->type = 1; //SWAP == 1 
+}
 
-	uint8_t *frame = frame_alloc(PAL_USER);
-	if(!frame)
-	{
-		free(spte);
-		return false;
-	}
+uint8_t *frame = frame_alloc(PAL_USER);
 
-	if(!install_page(spte->upage, frame, true)){
-		free(spte);
-		frame_free(frame);
-		return false;
-	}
+if(frame == NULL)
+{
+        free(spt_entry);
+        return false;
+}
 
-	struct thread* cur = thread_current();
-	return (hash_insert(&cur->spage_table, &spte->elem) == NULL);
+bool install_page_success = install_page(spt_entry -> upage, frame, true);
+/////////////////install_page _ what return?
+if(install_page_success == false)
+{
+        free(spt_entry);
+        frame_free(frame);
+        return false;
+}
+bool hash_check = (hash_insert(&thread_current() -> spage_table, &spt_entry->elem)==NULL);
+return hash_check;
 }
 
 
