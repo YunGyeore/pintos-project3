@@ -166,6 +166,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		ste->zero_bytes = zero_page_bytes;
 		ste->type = 2;	 //mmap	
 		ste->loaded = false;
+		ste->writable = true;
 		if(hash_insert(&cur->spage_table, &ste->elem) != NULL){
 			free(ste); free(mp);
 			f->eax = -1; return;

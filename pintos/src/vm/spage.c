@@ -45,8 +45,7 @@ bool load_page (void *vaddr)
 		case 1:
 			return false; //load_swap(ste);
 		case 2:
-			
-			return load_file(ste); //load_mmap(ste);
+			return load_file(ste);
 		default:
 			break;
 	}	
@@ -73,6 +72,7 @@ bool load_file (struct spage_table_entry *ste)
 		return false;
 	}
 	memset (kpage + ste->read_bytes, 0, ste->zero_bytes);
+
 	/* Add the page to the process's address space. */
 	if (!install_page (ste->upage, kpage, ste->writable))
 	{
@@ -80,7 +80,6 @@ bool load_file (struct spage_table_entry *ste)
 		frame_free (kpage);                     /*our implementation */
 		return false;
 	}
-
 	ste->loaded = true;
 	return true;
 }

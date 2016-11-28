@@ -172,6 +172,7 @@ page_fault (struct intr_frame *f)
 		if(spte != NULL)
 		{
 			check = load_page(fault_addr);
+//			printf("%s\n", check?"true":"false");
 		}
 
 
@@ -180,6 +181,7 @@ page_fault (struct intr_frame *f)
 			check = grow_stack(fault_addr);
 		}
 	}
+//	printf("check : %s\n", check?"true":"false");
 	if(!check){
 		syscall_exit(f, -1);
 		printf ("Page fault at %p: %s error %s page in %s context.\n",
