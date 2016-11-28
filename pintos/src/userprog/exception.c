@@ -169,19 +169,25 @@ page_fault (struct intr_frame *f)
 		struct spage_table_entry * spte = get_ste(fault_addr);
 		int prev_upper_page_boundary = (((int)f->esp)/PGSIZE)*PGSIZE;
 		int prev_lower_page_boundary = (((int)f->esp)/PGSIZE)*PGSIZE-PGSIZE;
+		static int prev_esp;
 		if(spte != NULL)
 		{
+			
 			check = load_page(fault_addr);
-//			printf("%s\n", check?"true":"false");
+			
 		}
 
 
 		else if(fault_addr >= prev_lower_page_boundary && fault_addr < prev_upper_page_boundary)
 		{
-			check = grow_stack(fault_addr);
+			int page_size = (prev_esp -(int)f->esp)/PGSIZE +1;
+			int i;
+			for(i=page_size -1; i>=0; i--){
+			check = grow_stack(fault_addr+i*PGSIZE);
+			}
 		}
+		prev_esp = f->esp;
 	}
-//	printf("check : %s\n", check?"true":"false");
 	if(!check){
 		syscall_exit(f, -1);
 		printf ("Page fault at %p: %s error %s page in %s context.\n",

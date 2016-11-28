@@ -43,6 +43,8 @@ struct file* getFile(int fd,struct thread *cur);
 
 struct fd_elem* getFdElem(int fd, struct thread *cur);
 
+void allMunmap();
+
 void munmap(int mapping);
 
 void elemFile(struct file *file);

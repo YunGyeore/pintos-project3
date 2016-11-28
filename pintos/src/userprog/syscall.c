@@ -11,10 +11,11 @@
 #include "devices/input.h"
 #include "vm/frame.h"
 #include "vm/spage.h"
+#include "filesys/inode.h"
 #define checkARG 	if((uint32_t)esp > 0xc0000000-(argsNum+1)*4) \
 										syscall_exit(f,argsNum);
 void delete_mmap_page(struct mmap_page *);
-void allMunmap();
+
 static void syscall_handler (struct intr_frame *);
 static struct list fd_list;
 
@@ -60,8 +61,6 @@ struct fd_elem* getFdElem(int fd, struct thread *cur)
                 if(fe->owner == cur && fe->fd == fd)
                 {
                         result = fe;
-                        if(fe->isEXE)
-                                file_deny_write(fe->file);
                         break;
                 }
         }
@@ -146,11 +145,10 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		return;
 	}
 	while(read_bytes>0){
-		
 		off_t read_page_bytes = (read_bytes > PGSIZE) ? PGSIZE : read_bytes;
+
 		off_t zero_page_bytes = PGSIZE-read_page_bytes;
 		struct spage_table_entry * ste = (struct spage_table_entry *)malloc(sizeof(struct spage_table_entry));
-	//	printf("file : %x, offset : %d, upage : %x, read_bytes : %d\n", file, ofs, addr, read_page_bytes);
 		if(!ste) {
 			f->eax = -1; return;
 		}
@@ -158,7 +156,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		if(!mp){
 			free(ste);
 			f->eax = -1; return;
-		}//error 
+		}//error
 		ste->file = file;
 		ste->ofs = ofs;
 		ste->upage = addr;
@@ -212,7 +210,7 @@ void allMunmap()
 	for(;e!=list_end(&cur->mmap_file);e=list_next(e))
 	{
 		struct mmap_page *mp = list_entry(e,struct mmap_page, elem);
-		e=list_prev(e);
+		e=list_prev(e); 
 		delete_mmap_page(mp);
 	}
 }
@@ -220,10 +218,11 @@ void delete_mmap_page(struct mmap_page *mp)
 {
 	struct thread * cur = thread_current();
 	struct spage_table_entry * ste = mp->ste;
-
+	off_t write_b;
 	if(ste->loaded){
 		if(pagedir_is_dirty(cur->pagedir, ste->upage)){
-			file_write_at(ste->file, ste->upage, ste->read_bytes, ste->ofs);
+			write_b = file_write_at(ste->file, ste->upage, ste->read_bytes, ste->ofs);
+			
 		}
 		void * frame;
 		frame = pagedir_get_page(cur->pagedir, ste->upage);
@@ -275,13 +274,12 @@ void syscall_exit(struct intr_frame *f,int argsNum)
 	if(ci != NULL){
 		ci->exitCode = status;
 	}
-	
+	allMunmap();
 	if(FILELOCK.holder != cur)
 	lock_acquire(&FILELOCK);
 	allClose(cur);
 	if(FILELOCK.holder == cur)
 	lock_release(&FILELOCK);
-
 	printf("%s: exit(%d)\n",cur->name,status);
 	
 	thread_exit();
