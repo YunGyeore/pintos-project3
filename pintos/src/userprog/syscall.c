@@ -50,6 +50,23 @@ struct file* getFile(int fd, struct thread *cur)
 	}
 	return result;
 }
+struct fd_elem* getFdElem(int fd, struct thread *cur)
+{
+        struct list_elem *e = list_begin(&fd_list);
+        struct fd_elem * result = NULL;
+        for(;e!=list_end(&fd_list);e=list_next(e))
+        {
+                struct fd_elem *fe = list_entry(e,struct fd_elem, elem);
+                if(fe->owner == cur && fe->fd == fd)
+                {
+                        result = fe;
+                        if(fe->isEXE)
+                                file_deny_write(fe->file);
+                        break;
+                }
+        }
+        return result;
+}
 
 void
 syscall_init (void) 
@@ -102,7 +119,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 	struct thread * cur = thread_current();
 	void * esp = f->esp;
         checkARG
-	
+		
         int fd = *(int *)(esp+4);
         void* addr = *(void **)(esp+8);
 
@@ -110,13 +127,13 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		f->eax = -1;
 		return;
 	}
-	struct file *file = getFile(fd, cur);
-	
-	if(!file || !addr)
+	struct fd_elem *fe = getFdElem(fd, cur);
+	if(!fe || !addr)
 	{
 		f->eax = -1;
 		return;
 	}
+	struct fild * file = fe->file;
 	if((int)addr % (int)PGSIZE != 0){
 		f->eax = -1;
 		return;
@@ -155,29 +172,35 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		}
 		mp->id = cur->nextMapId;
 		mp->ste = ste;
-	
+			
 		list_push_back(&cur->mmap_file, &mp->elem);;
 		read_bytes -= read_page_bytes;
 		ofs += read_page_bytes;
 		addr += read_page_bytes;
 	}
+	fe->mapid = cur->nextMapId;
 	f->eax = cur->nextMapId++;
 }
 void syscall_munmap(struct intr_frame *f, int argsNum)
 {
-	struct thread * cur = thread_current();
 	void*esp = f->esp;
         checkARG
 
         int mapping = *(int *)(esp+4);
+	munmap(mapping);
+}
+void munmap(int mapping)
+{
+	struct thread * cur = thread_current();
 	struct list_elem *e = list_begin(&cur->mmap_file);
-        for(;e!=list_end(&fd_list);e=list_next(e))
+	
+        for(;e!=list_end(&cur->mmap_file);e=list_next(e))
         {
                 struct mmap_page *mp = list_entry(e,struct mmap_page, elem);
                 if(mp->id == mapping)
                 {
-			delete_mmap_page(mp);
-			break;
+			e = list_prev(e);
+                        delete_mmap_page(mp);
                 }
         }
 }
@@ -196,6 +219,7 @@ void delete_mmap_page(struct mmap_page *mp)
 {
 	struct thread * cur = thread_current();
 	struct spage_table_entry * ste = mp->ste;
+
 	if(ste->loaded){
 		if(pagedir_is_dirty(cur->pagedir, ste->upage)){
 			file_write_at(ste->file, ste->upage, ste->read_bytes, ste->ofs);
@@ -375,7 +399,8 @@ void syscall_open(struct intr_frame *f,int argsNum){
 		{
 			fe->isEXE = true;
 		} else fe->isEXE = false;
-
+		
+		fe->mapid = -1;
 		list_push_back(&fd_list,&fe->elem);
 		
 		f->eax = fe->fd;
@@ -517,10 +542,12 @@ void syscall_close(struct intr_frame *f,int argsNum){
 
 
 	struct thread* cur = thread_current();
-	struct file *file = getFile(fd,cur);
+	struct fd_elem *fe = getFdElem(fd, cur);
+	if(fe == NULL) return;
+	struct file *file = fe->file;
 	lock_acquire(&FILELOCK);
 	if(file != NULL)
-	{
+	{	
 		file_close(file);
 		elemFile(file);
 	}

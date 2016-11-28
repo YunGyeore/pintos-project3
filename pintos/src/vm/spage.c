@@ -45,7 +45,7 @@ bool load_page (void *vaddr)
 		case 1:
 			return false; //load_swap(ste);
 		case 2:
-//			ASSERT(1==0);
+			
 			return load_file(ste); //load_mmap(ste);
 		default:
 			break;
@@ -55,19 +55,46 @@ bool load_page (void *vaddr)
 /* load file */
 bool load_file (struct spage_table_entry *ste)
 {
-//	void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
+	//	void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
 	void *kpage = frame_alloc(PAL_USER);
 	int read_b;
 	if (kpage == NULL)
 		return false;
-	
+
 	/* Load this page. */
-//	printf("file : %x and size : %d\n", ste->file, file_length(ste->file));
+	//	printf("file : %x and size : %d\n", ste->file, file_length(ste->file));
 	read_b = file_read_at (ste->file, kpage, ste->read_bytes, ste->ofs);
 	if (read_b != (int) ste->read_bytes)
 	{
-		printf("actual read bytes : %d\n", read_b);
-//		printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
+//		printf("actual read bytes : %d\n", read_b);
+		//		printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
+		//          palloc_free_page (kpage);                   /*original version*/
+		frame_free (kpage);                     /* our implementation */
+		return false;
+	}
+	memset (kpage + ste->read_bytes, 0, ste->zero_bytes);
+	/* Add the page to the process's address space. */
+	if (!install_page (ste->upage, kpage, ste->writable))
+	{
+		//          palloc_free_page (kpage);                   /*original version*/
+		frame_free (kpage);                     /*our implementation */
+		return false;
+	}
+
+	ste->loaded = true;
+	return true;
+}
+bool load_mmap (struct spage_table_entry *ste)
+{
+	//      void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
+	void *kpage = frame_alloc(PAL_USER);
+	if (kpage == NULL)
+		return false;
+
+	/* Load this page. */
+	if (file_read_at (ste->file, kpage, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
+	{
+		printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
 		//          palloc_free_page (kpage);                   /*original version*/
 		frame_free (kpage);                     /* our implementation */
 		return false;
@@ -83,33 +110,6 @@ bool load_file (struct spage_table_entry *ste)
 	}
 	ste->loaded = true;
 	return true;
-}
-bool load_mmap (struct spage_table_entry *ste)
-{
-//      void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
-        void *kpage = frame_alloc(PAL_USER);
-        if (kpage == NULL)
-                return false;
-
-        /* Load this page. */
-        if (file_read_at (ste->file, kpage, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
-        {
-                printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
-                //          palloc_free_page (kpage);                   /*original version*/
-                frame_free (kpage);                     /* our implementation */
-                return false;
-        }
-        memset (kpage + ste->read_bytes, 0, ste->zero_bytes);
-
-        /* Add the page to the process's address space. */
-        if (!install_page (ste->upage, kpage, ste->writable))
-        {
-                //          palloc_free_page (kpage);                   /*original version*/
-                frame_free (kpage);                     /*our implementation */
-                return false;
-        }
-        ste->loaded = true;
-        return true;
 }
 /* add file (just supplement page table, not load file) */
 
@@ -135,36 +135,36 @@ bool add_file (struct file *file, int32_t ofs, uint8_t *upage, uint32_t read_byt
 
 bool grow_stack(void *vaddr)
 {
-void *paged_vaddr = pg_round_down(vaddr);
-if((PHYS_BASE - paged_vaddr) >MAX_STACK)  return false;
+	void *paged_vaddr = pg_round_down(vaddr);
+	if((PHYS_BASE - paged_vaddr) >MAX_STACK)  return false;
 
-struct spage_table_entry *spt_entry = malloc(sizeof(struct spage_table_entry));
-if(!spt_entry) return false;
+	struct spage_table_entry *spt_entry = malloc(sizeof(struct spage_table_entry));
+	if(!spt_entry) return false;
 
-else
-{
-spt_entry->upage = paged_vaddr;
-spt_entry->type = 1; //SWAP == 1 
-}
+	else
+	{
+		spt_entry->upage = paged_vaddr;
+		spt_entry->type = 1; //SWAP == 1 
+	}
 
-uint8_t *frame = frame_alloc(PAL_USER);
+	uint8_t *frame = frame_alloc(PAL_USER);
 
-if(frame == NULL)
-{
-        free(spt_entry);
-        return false;
-}
+	if(frame == NULL)
+	{
+		free(spt_entry);
+		return false;
+	}
 
-bool install_page_success = install_page(spt_entry -> upage, frame, true);
-/////////////////install_page _ what return?
-if(install_page_success == false)
-{
-        free(spt_entry);
-        frame_free(frame);
-        return false;
-}
-bool hash_check = (hash_insert(&thread_current() -> spage_table, &spt_entry->elem)==NULL);
-return hash_check;
+	bool install_page_success = install_page(spt_entry -> upage, frame, true);
+	/////////////////install_page _ what return?
+	if(install_page_success == false)
+	{
+		free(spt_entry);
+		frame_free(frame);
+		return false;
+	}
+	bool hash_check = (hash_insert(&thread_current() -> spage_table, &spt_entry->elem)==NULL);
+	return hash_check;
 }
 
 

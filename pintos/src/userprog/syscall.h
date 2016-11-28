@@ -41,6 +41,10 @@ int currentFd(struct thread *cur);
 
 struct file* getFile(int fd,struct thread *cur);
 
+struct fd_elem* getFdElem(int fd, struct thread *cur);
+
+void munmap(int mapping);
+
 void elemFile(struct file *file);
 
 void allClose(struct thread *cur);
@@ -52,6 +56,7 @@ struct fd_elem{
 	char* filename;
 	int fd;
 	bool isEXE;
+	int mapid;
 };
 
 #endif /* userprog/syscall.h */
