@@ -147,7 +147,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		
         int fd = *(int *)(esp+4);
         void* addr = *(void **)(esp+8);
-	if(!is_user_vaddr(addr) || addr<0x08048000){
+	if(addr>=0xbf800000 || addr<0x08048000){
 		f->eax = -1; return;
 	}
 	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){

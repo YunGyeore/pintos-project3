@@ -14,7 +14,7 @@ struct frame_table_entry
 
 void * frame_alloc(enum palloc_flags flags);
 void frame_free(void *frame);
-bool frame_evict(void *frame);
+bool frame_evict();
 
 
 /* declaration */

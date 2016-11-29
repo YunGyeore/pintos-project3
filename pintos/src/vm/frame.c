@@ -61,7 +61,7 @@ void* frame_alloc(enum palloc_flags flags)
 	}
 	else 
 	{
-		if(!frame_evict(frame)) //evict is not completely modified yet. why it need argument "frame"?
+		if(!frame_evict()) //evict is not completely modified yet. why it need argument "frame"?
 		{
 			PANIC("eviction fail. swap is full!");
 		}	
@@ -78,7 +78,7 @@ void frame_free(void *frame)
 	hash_delete(&frame_table, e);
 	lock_release(&frame_table_lock);
 }
-bool frame_evict(void * frame)
+bool frame_evict(void)
 {
 	return false;
 }
