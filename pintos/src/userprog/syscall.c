@@ -78,6 +78,31 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
+	static int prev_esp=PHYS_BASE;
+	static bool only_one = false;
+	bool check = false;
+	if( !only_one && (int)prev_esp - (int)f->esp > PGSIZE)
+	{
+		//      printf("\ncheck\n");
+		struct spage_frame_table *spte = get_ste(f->esp);
+		if(spte)
+		{
+			only_one=true;
+			//              printf("\nin roop\n");
+			int page_size = (prev_esp -(int)f->esp)/PGSIZE +1;
+			int i;
+			//              printf("\npage_size: %d\n",page_size);
+			//printf("page_size: %d, f->esp: %x \n",page_size,f->esp);
+			for(i=page_size -1; i>=1; i--)
+			{
+				check = grow_stack(f->esp+i*PGSIZE);
+			}
+		}
+		//      if(!check){
+		//      syscall_exit(f, -1);
+		//      }
+	}
+
 	uint32_t syscall_num = *(uint32_t *)(f->esp);
 
 	switch(syscall_num){
@@ -115,13 +140,16 @@ syscall_handler (struct intr_frame *f)
 }
 void syscall_mmap(struct intr_frame *f, int argsNum)
 {
+//	printf("mmap!\n");
 	struct thread * cur = thread_current();
 	void * esp = f->esp;
         checkARG
 		
         int fd = *(int *)(esp+4);
         void* addr = *(void **)(esp+8);
-
+	if(!is_user_vaddr(addr) || addr<0x08048000){
+		f->eax = -1; return;
+	}
 	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){
 		f->eax = -1;
 		return;
@@ -132,7 +160,7 @@ void syscall_mmap(struct intr_frame *f, int argsNum)
 		f->eax = -1;
 		return;
 	}
-	struct fild * file = fe->file;
+	struct fild * file = file_reopen(fe->file);
 	if((int)addr % (int)PGSIZE != 0){
 		f->eax = -1;
 		return;

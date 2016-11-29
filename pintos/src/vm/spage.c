@@ -66,7 +66,7 @@ bool load_file (struct spage_table_entry *ste)
 	if (read_b != (int) ste->read_bytes)
 	{
 //		printf("actual read bytes : %d\n", read_b);
-		//		printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
+//				printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
 		//          palloc_free_page (kpage);                   /*original version*/
 		frame_free (kpage);                     /* our implementation */
 		return false;
@@ -83,35 +83,6 @@ bool load_file (struct spage_table_entry *ste)
 	ste->loaded = true;
 	return true;
 }
-bool load_mmap (struct spage_table_entry *ste)
-{
-	//      void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
-	void *kpage = frame_alloc(PAL_USER);
-	if (kpage == NULL)
-		return false;
-
-	/* Load this page. */
-	if (file_read_at (ste->file, kpage, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
-	{
-		printf("file pointer : %x\nallocated page : %x\nread_byte : %d\noffset : %d\n", ste->file, kpage, ste->read_bytes, ste->ofs);
-		//          palloc_free_page (kpage);                   /*original version*/
-		frame_free (kpage);                     /* our implementation */
-		return false;
-	}
-	memset (kpage + ste->read_bytes, 0, ste->zero_bytes);
-
-	/* Add the page to the process's address space. */
-	if (!install_page (ste->upage, kpage, ste->writable))
-	{
-		//          palloc_free_page (kpage);                   /*original version*/
-		frame_free (kpage);                     /*our implementation */
-		return false;
-	}
-	ste->loaded = true;
-	return true;
-}
-/* add file (just supplement page table, not load file) */
-
 bool add_file (struct file *file, int32_t ofs, uint8_t *upage, uint32_t read_bytes, uint32_t zero_bytes, bool writable)
 {
 	struct thread * cur = thread_current();
