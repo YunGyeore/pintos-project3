@@ -1,7 +1,7 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "vm/frame.h"
-
+#include "vm/swap.h"
 /* frame table hash function */ 
 static unsigned frame_hash_func(const struct hash_elem *e, void *aux UNUSED); 
 static bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED); 
@@ -41,7 +41,7 @@ void frame_table_init(void)
 }
 
 /* frame allocation */
-void* frame_alloc(enum palloc_flags flags)
+void* frame_alloc(enum palloc_flags flags, struct spage_table_entry * ste)
 {
 	if((flags & PAL_USER) == 0)
 	{
@@ -54,6 +54,8 @@ void* frame_alloc(enum palloc_flags flags)
 		struct frame_table_entry *fte = malloc(sizeof(struct frame_table_entry));
        		fte->frame = frame;
        		fte->tid = thread_tid();
+
+		fte->ste = ste;	
 
 	        lock_acquire(&frame_table_lock);
 	        hash_insert(&frame_table, &fte->elem);
@@ -80,5 +82,60 @@ void frame_free(void *frame)
 }
 bool frame_evict(void)
 {
-	return false;
+	struct thread * cur = thread_current();
+	static struct frame_table_entry *first_on_now = NULL;
+	struct frame_table_entry *fte = NULL;
+	struct hash_iterator i;
+	bool swappable;
+	
+evicting:	
+
+	swappable = true;
+	if(first_on_now == NULL)
+		hash_first(&i, &frame_table);
+	else 
+		hash_find_iterator(&i, &frame_table, first_on_now);
+	while( 1 )
+	{
+		if(! hash_next(&i) ){
+			if(first_on_now == NULL) break;
+			hash_first(&i, &frame_table);
+			hash_next(&i);
+		}
+		fte = hash_entry(hash_cur(&i), struct frame_table_entry, elem);
+
+		if(pagedir_is_accessed(cur->pagedir, fte->ste->upage)){
+			pagedir_set_accessed(cur->pagedir, fte->ste->upage, false);
+		}
+		else{
+			if(fte == first_on_now){
+				if(!hash_next(&i)){
+					hash_first(&i, &frame_table);
+					hash_next(&i);
+				}
+			}
+			struct frame_table_entry *fte_temp = hash_entry(hash_cur(&i), struct frame_table_entry, elem);
+			if(pagedir_is_dirty(cur->pagedir, fte->ste->upage))
+				swap_out(fte->frame);
+			frame_free(fte->frame);
+			fte = fte_temp;
+			break;
+		}
+		if(fte == first_on_now){
+			swappable = false;
+			break;
+		}
+	}
+	if(!swappable){
+		goto evicting;	
+	}
+	first_on_now = fte;
+}
+void hash_find_iterator(struct hash_iterator *i, struct hash *hash, struct frame_table_entry * o)
+{
+	hash_first(i, hash);
+	while(hash_next(i)){
+		struct frame_table_entry *fte = hash_entry(hash_cur(i), struct frame_table_entry, elem);
+		if(fte == o) break;
+	}
 }

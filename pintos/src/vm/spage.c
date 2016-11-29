@@ -55,7 +55,7 @@ bool load_page (void *vaddr)
 bool load_file (struct spage_table_entry *ste)
 {
 	//	void *addr = pagedir_get_page(thread_current()->pagedir, ste->upage);
-	void *kpage = frame_alloc(PAL_USER);
+	void *kpage = frame_alloc(PAL_USER, ste);
 	int read_b;
 	if (kpage == NULL)
 		return false;
@@ -117,7 +117,7 @@ bool grow_stack(void *vaddr)
 		spt_entry->type = 1; //SWAP == 1 
 	}
 
-	uint8_t *frame = frame_alloc(PAL_USER);
+	uint8_t *frame = frame_alloc(PAL_USER, spt_entry);
 
 	if(frame == NULL)
 	{

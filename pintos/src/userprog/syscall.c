@@ -250,7 +250,6 @@ void delete_mmap_page(struct mmap_page *mp)
 	if(ste->loaded){
 		if(pagedir_is_dirty(cur->pagedir, ste->upage)){
 			write_b = file_write_at(ste->file, ste->upage, ste->read_bytes, ste->ofs);
-			
 		}
 		void * frame;
 		frame = pagedir_get_page(cur->pagedir, ste->upage);
